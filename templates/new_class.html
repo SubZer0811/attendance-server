@@ -1,0 +1,15 @@
+{% extends "base.html" %}
+
+{% block body %}
+
+<form action="/new_class" method="post">
+	<label for="class_name" class="form-label">Class Name</label>
+	<input id="class_name" name="class_name" type="text">
+	<br>
+	<label for="students_list" class="form-label">Students List</label>
+	<textarea id="students_list" name="students_list"></textarea>
+	<br>
+	<button type="submit">Submit</button>
+</form>
+
+{% endblock %}

@@ -1,0 +1,25 @@
+{% extends "base.html" %}
+
+{% block body %}
+<div>
+	<form action="/new_class" id="createClass">
+		<button type="submit">+ New Class</button>
+	</form>
+</div>
+
+<div>
+	Your classes:
+</div>
+<table>
+	<tr>
+		<!-- <th>Class Name</th> -->
+	</tr>
+	{% for item in classes %}
+    <tr><td>
+		<form action="/class/{{ item[0] }}">
+			<button>{{ item[1] }}</button>
+		</form>
+	</td></tr>
+	{% endfor %}
+</table>
+{% endblock %}

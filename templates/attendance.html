@@ -1,0 +1,105 @@
+{% extends "base.html" %}
+
+{% block head %}
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrious/4.0.2/qrious.min.js"></script>
+{% endblock %}
+
+{% block body %}
+
+<div>
+	Class id = {{ class_id }} <br>
+	Class Name = {{ class_name }}
+</div>
+
+<div>
+	<button id="attndBtn" type="button" onclick="startAttendance()">Take Attendance</button>
+</div>
+<br><br><br>
+{{ qr_text }}
+<!-- <table class="table">
+	<tr>
+		<th>Sl. No.</th>
+		<th>Student Roll Number</th>
+		<th>Student Name</th>
+	</tr>
+	{% for item in students %}
+    <tr>
+		<td>{{ loop.index }}</td>
+		<td>{{ item[0] }}</td>
+		<td>{{ item[1] }}</td>
+	</tr>
+	{% endfor %}
+</table> -->
+<div id="timeLeft"></div>
+<canvas id="qr-code" hidden></canvas>
+<script>
+	function sleep(ms) {
+		return new Promise(resolve => setTimeout(resolve, ms));
+	}
+	var qr = new QRious({
+		element: document.getElementById('qr-code'),
+		size: 200
+	});
+	async function startAttendance() {
+		var time_left;
+		formData = {
+			msg: "start"
+		}
+
+		$.ajax({
+			contentType : "application/json",
+			dataType: "json",
+			type: "POST",
+			url: "/take_attendance/{{class_id}}",
+			data: JSON.stringify(formData),
+			success: function(response) {
+				console.log(response);
+				time_left = response.time_left;
+				$("#timeLeft").html(time_left);
+				qr.set({
+					foreground: 'black',
+					size: 200,
+					value: response.qr_text
+				});
+			}
+		  });
+		  formData = {
+			msg: "heartbeat"
+		}
+		document.getElementById("qr-code").hidden = "";
+		while(time_left != -1) {
+			$.ajax({
+				contentType : "application/json",
+				dataType: "json",
+				type: "POST",
+				url: "/take_attendance/{{class_id}}",
+				data: JSON.stringify(formData),
+				success: function(response) {
+					time_left = response.time_left;
+					console.log(time_left);
+				}
+			  });
+			  if(time_left != -1) {
+				  console.log("test")
+				  $("#timeLeft").html(time_left);
+			  }
+			await new Promise(r => setTimeout(r, 1000));
+		}
+		$("#timeLeft").html("Time's up!");
+		document.getElementById("qr-code").hidden = "hidden";
+	}
+
+
+
+	//function generateQRCode() {
+	//	var qrtext = document.getElementById("qr-text").value;
+	//	document.getElementById("qr-result").innerHTML = "QR code for " + qrtext + ":";
+	//	alert(qrtext);
+	//	qr.set({
+	//		foreground: 'black',
+	//		size: 200,
+	//		value: qrtext
+	//	});
+	//}
+</script>
+{% endblock %}

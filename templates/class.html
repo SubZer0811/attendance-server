@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+
+{% block body %}
+
+<div>
+	Class id = {{ class_id }} <br>
+	Class Name = {{ class_name }}
+</div>
+
+<div>
+	<form action="/attendance/{{ class_id }}" id="attendance" method="post">
+		<button type="submit">Attendance</button>
+	</form>
+</div>
+<br><br><br>
+<div>
+	<form action="/add_studs/{{ class_id }}" id="addStuds" method="post">
+		<textarea id="students_list" name="students_list"></textarea>
+		<button type="Add Students">+ Add Students</button>
+	</form>
+</div>
+
+<table class="table">
+	<tr>
+		<th>Sl. No.</th>
+		<th>Student Roll Number</th>
+		<th>Student Name</th>
+	</tr>
+	{% for item in students %}
+    <tr>
+		<td>{{ loop.index }}</td>
+		<td>{{ item[0] }}</td>
+		<td>{{ item[1] }}</td>
+	</tr>
+	{% endfor %}
+</table>
+{% endblock %}
