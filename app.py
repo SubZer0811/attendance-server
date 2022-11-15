@@ -1,6 +1,9 @@
 import datetime
+import sqlite3
 import threading
 from time import sleep
+import time
+import traceback
 from flask import flash, jsonify, redirect, render_template, url_for, Flask, request
 from flask_login import LoginManager, UserMixin, current_user, login_required, login_user, logout_user
 from flask_sqlalchemy import SQLAlchemy
@@ -8,8 +11,9 @@ from werkzeug.security import generate_password_hash, check_password_hash
 import re
 import sqlalchemy
 from pytz import timezone
+from sqlalchemy import exc
 
-from db_models import User, Class, StudentClass, db, get_class_id
+from db_models import User, Class, StudentClass, Attendance, ActiveAttendance, db, get_class_id
 
 app = Flask(__name__)
 
@@ -49,6 +53,7 @@ def register_page():
 @app.route('/register', methods=['POST'])
 def register():
     data = request.get_json()
+    print(data)
     full_name = str(data.get('fullname'))
     username = str(data.get('username'))
     password = str(data.get('password'))
@@ -61,20 +66,22 @@ def register():
     error_message = ''
 
     user = User.query.filter_by(username=username).first()
+    print(user)
     if user:
         error_message = "Username already exists!"
     if password != password_rep:
         error_message = "Passwords do not match."
-    if not username.startswith('FAC'):
+    if role == 1 and not username.startswith('FAC'):
         error_message = "Faculty username should start with 'FAC'."
     if re.findall(r"[^a-zA-Z\d\s:]", full_name+username+password):
         error_message = "Fields cannot contain non-alphanumeric characters."
 
+    if error_message:
+        print(error_message)
+        return jsonify({"error_message": error_message})
+
     db.session.add(User(username=username, password=password, full_name=full_name, role=role))
     db.session.commit()
-
-    if error_message:
-        return jsonify({"error_message": error_message})
 
     return jsonify({"error_message": "success"})
 
@@ -168,7 +175,7 @@ def new_class_form():
     db.session.add_all(rows)
     db.session.commit()
 
-    return redirect("/class_list")
+    return redirect("/class")
 
 @app.route('/add_studs/<int:class_id>', methods=['POST'])
 @login_required
@@ -206,51 +213,101 @@ def take_attendance(class_id):
     class_id, class_name = res
     data = request.get_json()
     print(data)
-    # Generate text for QR
-    global class_timestamp
-    if (class_id not in class_timestamp.keys() or class_timestamp[class_id]["completed"]) and data["msg"]=="start":
-        
-        start_timestamp = datetime.datetime.now(timezone("Asia/Kolkata"))#.strftime('%Y-%m-%d %H:%M:%S.%f')
-        end_timestamp = start_timestamp + datetime.timedelta(minutes=0.2)
-        print(start_timestamp)
-        print(end_timestamp)
-        print(end_timestamp - start_timestamp)
-        qr_text = f"{class_id}_{start_timestamp}_{end_timestamp}"
-        class_timestamp[class_id] = {
-            "start_timestamp":start_timestamp,
-            "end_timestamp":end_timestamp,
-            "qr_text":qr_text,
-            "completed":0
-        }
-        thread = threading.Thread(target=timer,args=[class_id,])
-        thread.start()
+    
+    act_atdn = db.session.query(ActiveAttendance).filter_by(class_id=class_id).first()
+    # Check if an active attendance is available for the given class id
+    if not act_atdn:
+        if data['msg'] == "start":
+            duration = 10000 # in seconds
+            date_time = datetime.datetime.now(timezone("Asia/Kolkata"))
+            start_timestamp = time.mktime(date_time.timetuple())
+            end_timestamp = start_timestamp + duration
+            date_time = date_time.strftime('%Y-%m-%d %H:%M:%S')
+            
+            qr_text = f"{class_id}_{start_timestamp}_{end_timestamp}"
+            db.session.add(ActiveAttendance(class_id=class_id, start_timestamp=start_timestamp, end_timestamp=end_timestamp, qr_text=qr_text))
+            db.session.commit()
 
-    print(datetime.datetime.now(timezone("Asia/Kolkata")) > class_timestamp[class_id]["end_timestamp"])
-    print(class_timestamp)
-    # QR_text = start_timestamp + class_id + end_timestamp
+            thread = threading.Thread(target=timer,args=[class_id,])
+            thread.start()
+            act_atdn = db.session.query(ActiveAttendance).filter_by(class_id=class_id).first()
 
+            return jsonify({
+                "msg": "success",
+                "qr_text": act_atdn.qr_text,
+                "time_left": act_atdn.end_timestamp - time.mktime(datetime.datetime.now(timezone("Asia/Kolkata")).timetuple())
+            })
 
-    return jsonify({
-        "qr_text": class_timestamp[class_id]["end_timestamp"],
-        "time_left": int(class_timestamp[class_id]["time_left"]),
+        elif data['msg'] == "heartbeat":
+            return jsonify({
+                "msg": "Time's up!",
+                "time_left": -1
+            })
+    if data['msg'] == "start":
+        return jsonify({
+                "msg": "success",
+                "qr_text": act_atdn.qr_text,
+                "time_left": act_atdn.end_timestamp - time.mktime(datetime.datetime.now(timezone("Asia/Kolkata")).timetuple())
+            })
+    if data['msg'] == "heartbeat":
+        return jsonify({
+        "msg": "success",
+        "qr_text": act_atdn.qr_text,
+        "time_left": act_atdn.end_timestamp - time.mktime(datetime.datetime.now(timezone("Asia/Kolkata")).timetuple())
+        })
+    else:
+        return jsonify({
+        "msg": "not started"
         })
 
-def timer(class_id):
-    global class_timestamp
-    end_timestamp = class_timestamp[class_id]["end_timestamp"]
-    
-    now_time = datetime.datetime.now(timezone("Asia/Kolkata"))
-    while now_time < end_timestamp:
-        time_left = end_timestamp - now_time
-        print(time_left.total_seconds())
-        class_timestamp[class_id]["time_left"] = time_left.total_seconds()
-        sleep(0.5)
-        now_time = datetime.datetime.now(timezone("Asia/Kolkata"))
+@app.route("/punch_attendance", methods=["POST"])
+def punch_attendance():
 
-    class_timestamp[class_id]["time_left"] = -1
-    class_timestamp[class_id]["completed"] = 1
-    print(class_timestamp)
+    data = request.get_json()
+    print(data)
+    qr_text = str(data.get("qr_text"))
+    stud_id = str(data.get("username"))
+    timestamp = int(data.get("timestamp"))
+    message = ""
+    
+    try:
+        class_id, start_timestamp, end_timestamp = qr_text.split("_")
+        print(class_id, start_timestamp, end_timestamp)
+        act_atdn = db.session.query(ActiveAttendance).filter_by(class_id=class_id).first()
+        if not act_atdn:
+            message = "Invalid QR! (Error Code: QR10001)"
+        elif not (act_atdn.qr_text == qr_text):
+            message = "Invalid QR! (Error Code: QR10002)"
+        elif timestamp > act_atdn.end_timestamp:
+            message = "Time's up! No Attendance!"
+        else:
+            db.session.add(Attendance(date=datetime.datetime.fromtimestamp(act_atdn.end_timestamp).date(), class_id=class_id, stud_id=stud_id, present=1))
+            db.session.commit()
+            message = "Attendance Punched"
+    except exc.IntegrityError:
+        message = "Attendance already punched"
+    except Exception:
+        traceback.print_exc()
+        message = "Invalid QR!"
+
+    return jsonify({
+        "message": message
+    })
+
+
+def timer(class_id):
+
+    with app.app_context():
+        act_atdn = db.session.query(ActiveAttendance).filter_by(class_id=class_id).first()
+
+        end_timestamp = act_atdn.end_timestamp
+        start_timestamp = act_atdn.start_timestamp
+        duration = end_timestamp - start_timestamp
+        sleep(duration)
+
+        db.session.delete(act_atdn)
+        db.session.commit()
 
 
 if __name__ == "__main__":
-    app.run(host="0.0.0.0", port=5000, threaded=True)
+    app.run(host="0.0.0.0", debug=True, port=5000, threaded=True)

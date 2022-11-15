@@ -40,33 +40,36 @@
 		element: document.getElementById('qr-code'),
 		size: 200
 	});
-	async function startAttendance() {
-		var time_left;
+	var time_left;
+	function startAttendance() {
 		formData = {
 			msg: "start"
 		}
-
 		$.ajax({
-			contentType : "application/json",
-			dataType: "json",
-			type: "POST",
-			url: "/take_attendance/{{class_id}}",
-			data: JSON.stringify(formData),
-			success: function(response) {
-				console.log(response);
-				time_left = response.time_left;
-				$("#timeLeft").html(time_left);
-				qr.set({
-					foreground: 'black',
-					size: 200,
-					value: response.qr_text
-				});
-			}
-		  });
-		  formData = {
+				contentType : "application/json",
+				dataType: "json",
+				type: "POST",
+				url: "/take_attendance/{{class_id}}",
+				data: JSON.stringify(formData),
+				success: function(response) {
+					console.log(response);
+					console.log("Start Done!");
+					time_left = response.time_left;
+					$("#timeLeft").html(time_left);
+					qr.set({
+						foreground: 'black',
+						size: 200,
+						value: response.qr_text
+					});
+					poll();
+				}
+			  });
+	}
+	async function poll() {
+		document.getElementById("qr-code").hidden = "";
+		formData = {
 			msg: "heartbeat"
 		}
-		document.getElementById("qr-code").hidden = "";
 		while(time_left != -1) {
 			$.ajax({
 				contentType : "application/json",
@@ -88,18 +91,5 @@
 		$("#timeLeft").html("Time's up!");
 		document.getElementById("qr-code").hidden = "hidden";
 	}
-
-
-
-	//function generateQRCode() {
-	//	var qrtext = document.getElementById("qr-text").value;
-	//	document.getElementById("qr-result").innerHTML = "QR code for " + qrtext + ":";
-	//	alert(qrtext);
-	//	qr.set({
-	//		foreground: 'black',
-	//		size: 200,
-	//		value: qrtext
-	//	});
-	//}
 </script>
 {% endblock %}

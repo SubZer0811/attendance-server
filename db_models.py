@@ -45,7 +45,13 @@ class Attendance(declarative_base(),db.Model):
     date = Column(Date,primary_key=True)
     class_id = Column(Integer,primary_key=True)
     stud_id = Column(Integer,primary_key=True)
-    Attendance = Column(Integer) # TODO: Need to change this to boolean
+    present = Column(Integer) # TODO: Need to change this to boolean
+
+class ActiveAttendance(declarative_base(),db.Model):
+    class_id = Column(Integer,primary_key=True)
+    start_timestamp = Column(Integer)
+    end_timestamp = Column(Integer)
+    qr_text = Column(String)
 
 def get_class_id(class_name:str, faculty_id):
     res = Class.query.filter_by(class_name=class_name,faculty=faculty_id).first()
