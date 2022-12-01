@@ -6,33 +6,45 @@
 
 {% block body %}
 
+<p class="h1">
+	#{{ class_id }}: {{ class_name }}
+</p>
+
+<div class="dropdown">
+	<button class="btn btn-secondary dropdown-toggle" type="button" id="selected" data-bs-toggle="dropdown"
+		aria-haspopup="true" aria-expanded="false" style="width: 25%;">
+		Choose Classroom
+	</button>
+	<div class="dropdown-menu" aria-labelledby="dropdownMenuButton">
+		{% for room in class_rooms %}
+		<a class="dropdown-item" href="#">{{ room }}</a>
+		{% endfor %}
+	</div>
+	<button class="btn btn-success" id="attndBtn" type="button" onclick="startAttendance()" disabled>Take Attendance</button>
+</div>
 <div>
-	Class id = {{ class_id }} <br>
-	Class Name = {{ class_name }}
 </div>
 
+<br>
 <div>
-	<button id="attndBtn" type="button" onclick="startAttendance()">Take Attendance</button>
+	<p id="text" class="h3" hidden>
+		Time Left
+	</p>
+	<p id="timeLeft" class="h4" style="color: red;"></p>
+	<!-- <br> -->
+	<canvas id="qr-code" hidden></canvas>
+	<!-- <br> -->
 </div>
-<br><br><br>
-{{ qr_text }}
-<!-- <table class="table">
-	<tr>
-		<th>Sl. No.</th>
-		<th>Student Roll Number</th>
-		<th>Student Name</th>
-	</tr>
-	{% for item in students %}
-    <tr>
-		<td>{{ loop.index }}</td>
-		<td>{{ item[0] }}</td>
-		<td>{{ item[1] }}</td>
-	</tr>
-	{% endfor %}
-</table> -->
-<div id="timeLeft"></div>
-<canvas id="qr-code" hidden></canvas>
+<hr>
 <script>
+
+	$('.dropdown-menu a').click(function () {
+		if(document.getElementById("selected").innerHTML != "Choose Classroom") {
+			document.getElementById("attndBtn").disabled = "";
+		}
+		$('#selected').text($(this).text());
+	});
+
 	function sleep(ms) {
 		return new Promise(resolve => setTimeout(resolve, ms));
 	}
@@ -42,50 +54,55 @@
 	});
 	var time_left;
 	function startAttendance() {
+
 		formData = {
-			msg: "start"
+			msg: "start",
+			classroom: document.getElementById("selected").innerHTML
 		}
 		$.ajax({
-				contentType : "application/json",
-				dataType: "json",
-				type: "POST",
-				url: "/take_attendance/{{class_id}}",
-				data: JSON.stringify(formData),
-				success: function(response) {
-					console.log(response);
-					console.log("Start Done!");
-					time_left = response.time_left;
-					$("#timeLeft").html(time_left);
-					qr.set({
-						foreground: 'black',
-						size: 200,
-						value: response.qr_text
-					});
-					poll();
-				}
-			  });
+			contentType: "application/json",
+			dataType: "json",
+			type: "POST",
+			url: "/take_attendance/{{class_id}}",
+			data: JSON.stringify(formData),
+			success: function (response) {
+				console.log(response);
+				console.log("Start Done!");
+				time_left = response.time_left;
+				$("#timeLeft").html(time_left);
+				qr.set({
+					foreground: 'black',
+					size: 200,
+					value: response.qr_text
+				});
+				poll();
+			}
+		});
 	}
 	async function poll() {
+
 		document.getElementById("qr-code").hidden = "";
+		document.getElementById("timeLeft").hidden = "";
+		document.getElementById("text").hidden = "";
 		formData = {
 			msg: "heartbeat"
 		}
-		while(time_left != -1) {
+		while (time_left != -1) {
 			$.ajax({
-				contentType : "application/json",
+				contentType: "application/json",
 				dataType: "json",
 				type: "POST",
 				url: "/take_attendance/{{class_id}}",
 				data: JSON.stringify(formData),
-				success: function(response) {
+				success: function (response) {
 					time_left = response.time_left;
 					console.log(time_left);
 				}
-			  });
-			  if(time_left != -1) {
-				  console.log("test")
-				  $("#timeLeft").html(time_left);
-			  }
+			});
+			if (time_left != -1) {
+				console.log("test")
+				$("#timeLeft").html(time_left+" seconds");
+			}
 			await new Promise(r => setTimeout(r, 1000));
 		}
 		$("#timeLeft").html("Time's up!");

@@ -1,2 +1,35 @@
 {% extends "base.html" %}
+{% block body %}
+<div>
+	<form action="/new_class" id="createClass">
+		<button class="btn btn-success btn-lg" type="submit">+ New Class</button>
+	</form>
+</div>
+<hr>
+<p class="h4">
+	Your classes:
+</p>
+{% for item in classes %}
+<form class="d-flex" action="/class/{{ item[0] }}">
+	<button class="btn btn-secondary btn" style="width: 100%; margin: 7px">{{ item[1] }}</button>
+</form>
+{% endfor %}
+	
+<style>
+	th 
+	{
+	  vertical-align: bottom;
+	  text-align: center;
+	}
+	
+	th span 
+	{
+	  -ms-writing-mode: tb-rl;
+	  -webkit-writing-mode: vertical-rl;
+	  writing-mode: vertical-rl;
+	  transform: rotate(180deg);
+	  white-space: nowrap;
+	}
+</style>
 
+{% endblock %}

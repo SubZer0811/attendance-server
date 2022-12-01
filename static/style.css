@@ -1,3 +1,25 @@
 .warnings {
 	color: red;
 }
+
+.form-outline {
+	padding: 8px;
+}
+
+.form-label {
+	font-weight: bold;
+}
+
+body {
+	background: rgb(255,255,255);
+background: radial-gradient(circle, rgba(255,255,255,1) 0%, rgba(125,156,255,1) 100%);
+}
+
+.btn-label {
+	padding: 0;
+	font-weight: bold;
+}
+
+.form-control {
+	background-color: #ffffffcc;
+}

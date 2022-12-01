@@ -2,14 +2,18 @@
 
 {% block body %}
 
-<form action="/new_class" method="post">
+<p class="h4">
+Create New Class
+</p>
+
+<form class="form-control" action="/new_class" method="post">
 	<label for="class_name" class="form-label">Class Name</label>
-	<input id="class_name" name="class_name" type="text">
+	<input class="form-control" id="class_name" name="class_name" type="text">
 	<br>
 	<label for="students_list" class="form-label">Students List</label>
-	<textarea id="students_list" name="students_list"></textarea>
+	<textarea class="form-control" id="students_list" name="students_list"></textarea>
 	<br>
-	<button type="submit">Submit</button>
+	<button class="btn btn-primary" type="submit">Submit</button>
 </form>
 
 {% endblock %}
